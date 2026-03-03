@@ -1,0 +1,158 @@
+---
+title: 'PriceConverter Library'
+description: 'Complete API reference for the PriceConverter library used for ETH/USD price conversions'
+---
+
+## Overview
+
+The PriceConverter library provides utility functions for converting ETH amounts to USD values using Chainlink price feeds. It's designed to be used with the `using for` directive to extend `uint256` functionality.
+
+## Library Details
+
+- **License**: MIT
+- **Solidity Version**: 0.8.30
+- **Dependencies**: Chainlink AggregatorV3Interface
+- **Price Feed**: Sepolia ETH/USD (0x694AA1769357215DE4FAC081bf1f309aDC325306)
+
+## Functions
+
+### getPrice
+
+```solidity
+function getPrice() internal view returns (uint256)
+```
+
+Retrieves the current ETH/USD price from the Chainlink price feed.
+
+**Returns**:
+- `uint256`: The current ETH price in USD with 18 decimals (wei format)
+
+**Implementation Details**:
+- Uses Chainlink's AggregatorV3Interface on Sepolia testnet
+- Price feed address: `0x694AA1769357215DE4FAC081bf1f309aDC325306`
+- Multiplies the price by 1e10 to convert from 8 decimals to 18 decimals
+
+**Example**:
+```solidity
+uint256 ethPriceInUsd = PriceConverter.getPrice();
+// Returns price like 2000000000000000000000 (representing $2000)
+```
+
+### getConversionRate
+
+```solidity
+function getConversionRate(uint256 ethAmount) internal view returns (uint256)
+```
+
+Converts an ETH amount to its equivalent USD value.
+
+<ParamField path="ethAmount" type="uint256" required>
+  The amount of ETH in wei to convert to USD
+</ParamField>
+
+**Returns**:
+- `uint256`: The USD value of the provided ETH amount with 18 decimals
+
+**Implementation Details**:
+- Calls `getPrice()` to get the current ETH/USD rate
+- Multiplies ETH amount by the price and divides by 1e18 to maintain proper decimals
+- Formula: `(ethPrice * ethAmount) / 1e18`
+
+**Example**:
+```solidity
+uint256 usdValue = PriceConverter.getConversionRate(1 ether);
+// If ETH is $2000, returns 2000000000000000000000 ($2000 with 18 decimals)
+```
+
+### getVersion
+
+```solidity
+function getVersion() internal view returns (uint256)
+```
+
+Retrieves the version number of the Chainlink price feed aggregator.
+
+**Returns**:
+- `uint256`: The version number of the price feed contract
+
+**Implementation Details**:
+- Queries the same Chainlink price feed used in `getPrice()`
+- Useful for verifying which version of the aggregator is being used
+
+**Example**:
+```solidity
+uint256 version = PriceConverter.getVersion();
+// Returns the aggregator version (e.g., 4)
+```
+
+## Complete Source Code
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
+
+import {AggregatorV3Interface} from "@chainlink/contracts@1.5.0/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+
+library PriceConverter {
+    function getPrice() internal view returns (uint256) {
+        // Address 0x694AA1769357215DE4FAC081bf1f309aDC325306
+        // ABI ✅
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(0x694AA1769357215DE4FAC081bf1f309aDC325306);
+        (, int256 price,,,) = priceFeed.latestRoundData();
+        return uint256(price * 1e10);
+    }
+
+    function getConversionRate(uint256 ethAmount) internal view returns (uint256) {
+        uint256 ethPrice = getPrice();
+        uint256 ethAmountInUsd = (ethPrice * ethAmount) / 1e18;
+        return ethAmountInUsd;
+    }
+
+    function getVersion() internal view returns (uint256) {
+        return AggregatorV3Interface(0x694AA1769357215DE4FAC081bf1f309aDC325306).version();
+    }
+}
+```
+
+## Usage with FundMe Contract
+
+The PriceConverter library is typically used with the `using for` directive:
+
+```solidity
+import {PriceConverter} from "./PriceConverter.sol";
+
+contract FundMe {
+    using PriceConverter for uint256;
+    
+    function fund() public payable {
+        // msg.value is uint256, now has access to getConversionRate()
+        require(msg.value.getConversionRate() >= MINIMUM_USD, "Not enough ETH");
+    }
+}
+```
+
+## Chainlink Integration
+
+This library integrates with Chainlink's decentralized oracle network:
+
+- **Network**: Sepolia Testnet
+- **Feed**: ETH/USD Price Feed
+- **Address**: 0x694AA1769357215DE4FAC081bf1f309aDC325306
+- **Decimals**: Returns price with 8 decimals, converted to 18 decimals for consistency
+
+## Important Notes
+
+<Note>
+This library is configured for the Sepolia testnet. For mainnet deployment, update the price feed address to the appropriate Ethereum mainnet ETH/USD feed.
+</Note>
+
+<Warning>
+All functions are `internal view`, meaning they can only be called from within the contract or library, and they don't modify state. They do consume gas when called from state-changing functions.
+</Warning>
+
+## Decimal Handling
+
+- Chainlink price feeds return prices with 8 decimals
+- This library converts to 18 decimals (wei standard) by multiplying by 1e10
+- All returned values use 18 decimal places for consistency with ETH amounts
+- Example: $2000 USD = 2000000000000000000000 (with 18 decimals)

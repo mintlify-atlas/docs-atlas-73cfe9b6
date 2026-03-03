@@ -1,0 +1,390 @@
+---
+title: Gas Optimization
+description: Learn how to write gas-efficient Solidity code using constant, immutable, and other optimization techniques
+---
+
+## Why Gas Optimization Matters
+
+Every operation on Ethereum costs **gas** (paid in ETH). Writing efficient code:
+
+- Reduces transaction costs for users
+- Makes your contract more competitive
+- Improves user experience
+- Can save thousands of dollars on popular contracts
+
+<Info>
+On mainnet, poorly optimized contracts can cost users 2-5x more in gas fees compared to optimized versions.
+</Info>
+
+## Understanding Storage Costs
+
+Storage operations are the **most expensive** operations in Solidity:
+
+| Operation | Gas Cost (approximate) |
+|-----------|------------------------|
+| Read from storage (`SLOAD`) | 2,100 gas |
+| Write to storage (`SSTORE`) | 20,000 gas (new) / 5,000 gas (update) |
+| Read from memory | 3 gas |
+| Read constant | 0 gas (compile-time) |
+
+## Constant Variables
+
+Variables declared as `constant` are computed at **compile time** and embedded directly in the bytecode.
+
+### Without Constant
+
+```solidity
+contract Expensive {
+    uint256 minimumUsd = 5e18; // Stored in contract storage
+    
+    function fund() public payable {
+        require(msg.value >= minimumUsd); // SLOAD: ~2,100 gas
+    }
+}
+```
+
+### With Constant
+
+```solidity FundMe.sol
+contract FundMe {
+    uint256 public constant MINIMUM_USD = 5e18; // Not in storage
+    
+    function fund() public payable {
+        require(msg.value >= MINIMUM_USD); // Direct value: ~3 gas
+    }
+}
+```
+
+<Tip>
+Use UPPERCASE naming for constants by convention: `MINIMUM_USD`, `MAX_SUPPLY`, etc.
+</Tip>
+
+### Gas Savings
+
+Using `constant` saves approximately **2,000+ gas per read**.
+
+## Immutable Variables
+
+Variables declared as `immutable` can be set **once** in the constructor and then behave like constants.
+
+### When to Use Immutable
+
+Use `immutable` when the value is not known at compile time but won't change after deployment:
+
+```solidity FundMe.sol
+contract FundMe {
+    address public immutable i_owner;
+    
+    constructor() {
+        i_owner = msg.sender; // Set once during deployment
+    }
+    
+    function withdraw() public {
+        require(msg.sender == i_owner); // Efficient read
+    }
+}
+```
+
+<Note>
+Prefix immutable variables with `i_` by convention: `i_owner`, `i_priceFeed`, etc.
+</Note>
+
+### Immutable vs Regular Variables
+
+<Tabs>
+  <Tab title="Without Immutable">
+    ```solidity
+    contract FundMe {
+        address public owner; // Storage slot
+        
+        constructor() {
+            owner = msg.sender; // SSTORE: 20,000 gas
+        }
+        
+        function withdraw() public {
+            require(msg.sender == owner); // SLOAD: 2,100 gas
+        }
+    }
+    ```
+    
+    **Cost**: 20,000 gas (deployment) + 2,100 gas per read
+  </Tab>
+  <Tab title="With Immutable">
+    ```solidity
+    contract FundMe {
+        address public immutable i_owner; // In bytecode
+        
+        constructor() {
+            i_owner = msg.sender; // Embedded in code
+        }
+        
+        function withdraw() public {
+            require(msg.sender == i_owner); // Direct: ~100 gas
+        }
+    }
+    ```
+    
+    **Cost**: ~200 gas (deployment) + ~100 gas per read
+  </Tab>
+</Tabs>
+
+## Constant vs Immutable vs Regular
+
+| Type | Set When | Can Change | Gas Cost | Use Case |
+|------|----------|------------|----------|-----------|
+| `constant` | Compile time | Never | Lowest | Known at coding time |
+| `immutable` | Constructor | Never | Low | Known at deployment |
+| Regular | Anytime | Yes | Highest | Needs to change |
+
+### Example Comparison
+
+```solidity FundMe.sol
+contract FundMe {
+    // Constant: value known at compile time
+    uint256 public constant MINIMUM_USD = 5e18;
+    
+    // Immutable: value known at deployment
+    address public immutable i_owner;
+    
+    // Regular: value can change
+    address[] public funders;
+    
+    constructor() {
+        i_owner = msg.sender;
+    }
+}
+```
+
+## Custom Errors
+
+Custom errors save gas compared to `require` with error strings.
+
+### Before: String Error Messages
+
+```solidity
+function withdraw() public {
+    require(msg.sender == i_owner, "Sender is not owner!");
+}
+```
+
+### After: Custom Errors
+
+```solidity FundMe.sol
+error NotOwner();
+
+contract FundMe {
+    function withdraw() public {
+        if (msg.sender != i_owner) revert NotOwner();
+    }
+}
+```
+
+<Info>
+**Gas savings**: Custom errors save approximately **100-200 gas** per revert because they don't store the error string.
+</Info>
+
+### Custom Errors with Parameters
+
+```solidity
+error InsufficientFunds(uint256 requested, uint256 available);
+
+function withdraw(uint256 amount) public {
+    if (amount > balance) {
+        revert InsufficientFunds(amount, balance);
+    }
+}
+```
+
+## More Gas Optimization Techniques
+
+### 1. Use Calldata for Read-Only Arrays
+
+```solidity
+// Expensive: copies to memory
+function process(uint256[] memory data) external { }
+
+// Cheap: reads directly from calldata
+function process(uint256[] calldata data) external { }
+```
+
+### 2. Cache Storage Reads
+
+<Tabs>
+  <Tab title="Inefficient">
+    ```solidity
+    function withdraw() public {
+        for (uint256 i = 0; i < funders.length; i++) {
+            // Reads funders.length from storage every iteration
+        }
+    }
+    ```
+    
+    Reads storage `n` times
+  </Tab>
+  <Tab title="Optimized">
+    ```solidity
+    function withdraw() public {
+        uint256 fundersLength = funders.length; // Cache in memory
+        for (uint256 i = 0; i < fundersLength; i++) {
+            // Uses memory variable
+        }
+    }
+    ```
+    
+    Reads storage once
+  </Tab>
+</Tabs>
+
+### 3. Use ++i Instead of i++
+
+```solidity
+// Slightly more gas
+for (uint256 i = 0; i < length; i++) { }
+
+// Slightly less gas
+for (uint256 i = 0; i < length; ++i) { }
+```
+
+### 4. Use Mappings Over Arrays When Possible
+
+```solidity FundMe.sol
+// O(1) lookup
+mapping(address funder => uint256 amountFunded) public addressToAmountFunded;
+
+// O(n) lookup would require iteration
+address[] public funders;
+```
+
+### 5. Pack Variables
+
+Solidity uses 32-byte storage slots. Pack smaller types together:
+
+```solidity
+// Inefficient: uses 3 slots
+uint256 a;  // Slot 0
+uint128 b;  // Slot 1
+uint128 c;  // Slot 2
+
+// Efficient: uses 2 slots
+uint256 a;  // Slot 0
+uint128 b;  // Slot 1 (first 16 bytes)
+uint128 c;  // Slot 1 (last 16 bytes)
+```
+
+### 6. Use Events for Historical Data
+
+Instead of storing historical data in arrays, emit events:
+
+```solidity
+event Funded(address indexed funder, uint256 amount);
+
+function fund() public payable {
+    emit Funded(msg.sender, msg.value); // Cheap
+    // Better than: fundingHistory.push(...) // Expensive
+}
+```
+
+## Complete Optimized Example
+
+Here's the gas-optimized FundMe contract:
+
+```solidity FundMe.sol
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
+
+import {PriceConverter} from "./PriceConverter.sol";
+
+// Custom error (saves gas vs string errors)
+error NotOwner();
+
+contract FundMe {
+    using PriceConverter for uint256;
+
+    // Constant: value known at compile time
+    uint256 public constant MINIMUM_USD = 5e18;
+
+    address[] public funders;
+    mapping(address funder => uint256 amountFunded) public addressToAmountFunded;
+
+    // Immutable: value set once in constructor
+    address public immutable i_owner;
+
+    constructor() {
+        i_owner = msg.sender;
+    }
+
+    function fund() public payable {
+        require(msg.value.getConversionRate() >= MINIMUM_USD, "didn't send enough ETH");
+        funders.push(msg.sender);
+        addressToAmountFunded[msg.sender] += msg.value;
+    }
+
+    function withdraw() public onlyOwner {
+        // Cache array length
+        uint256 fundersLength = funders.length;
+        
+        for (uint256 funderIndex = 0; funderIndex < fundersLength; ++funderIndex) {
+            address funder = funders[funderIndex];
+            addressToAmountFunded[funder] = 0;
+        }
+        funders = new address[](0);
+
+        (bool callSuccess,) = payable(msg.sender).call{value: address(this).balance}("");
+        require(callSuccess, "Call failed");
+    }
+
+    modifier onlyOwner() {
+        // Custom error saves gas
+        if (msg.sender != i_owner) revert NotOwner();
+        _;
+    }
+
+    receive() external payable {
+        fund();
+    }
+
+    fallback() external payable {
+        fund();
+    }
+}
+```
+
+## Gas Optimization Checklist
+
+- [ ] Use `constant` for values known at compile time
+- [ ] Use `immutable` for values set in constructor
+- [ ] Use custom errors instead of `require` strings
+- [ ] Use `calldata` for read-only function parameters
+- [ ] Cache storage reads in memory
+- [ ] Use `++i` instead of `i++` in loops
+- [ ] Pack smaller variables together in storage
+- [ ] Use mappings instead of arrays for lookups
+- [ ] Emit events instead of storing historical data
+- [ ] Avoid redundant storage writes
+
+## Measuring Gas Costs
+
+Use tools to measure actual gas savings:
+
+```bash
+# In Foundry
+forge test --gas-report
+
+# In Hardhat
+npx hardhat test
+```
+
+<Tip>
+Always measure before and after optimization to verify actual gas savings. Some "optimizations" may not save as much as expected.
+</Tip>
+
+## Key Takeaways
+
+- Storage operations are the most expensive in Solidity
+- `constant` variables save ~2,000 gas per read (compile-time values)
+- `immutable` variables save gas for constructor-set values
+- Custom errors save gas compared to string error messages
+- Cache storage reads in memory for loops
+- Use `calldata` for read-only function parameters
+- Small optimizations add up in frequently-called functions
+- Always test gas costs before and after optimization

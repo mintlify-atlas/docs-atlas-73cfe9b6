@@ -1,0 +1,222 @@
+---
+title: 'FundMe Contract'
+description: 'Complete API reference for the FundMe crowdfunding smart contract'
+---
+
+## Overview
+
+The FundMe contract is a crowdfunding smart contract that allows users to send ETH with a minimum USD value requirement. It uses Chainlink price feeds to convert ETH to USD and includes withdrawal functionality restricted to the contract owner.
+
+## Contract Details
+
+- **License**: MIT
+- **Solidity Version**: 0.8.30
+- **Dependencies**: PriceConverter library, Chainlink AggregatorV3Interface
+
+## State Variables
+
+### MINIMUM_USD
+
+```solidity
+uint256 public constant MINIMUM_USD = 5e18
+```
+
+The minimum USD value (in wei, with 18 decimals) required for a funding transaction. Set to $5 USD.
+
+### funders
+
+```solidity
+address[] public funders
+```
+
+Dynamic array storing addresses of all funders who have contributed to the contract.
+
+### addressToAmountFunded
+
+```solidity
+mapping(address funder => uint256 amountFunded) public addressToAmountFunded
+```
+
+Mapping that tracks the total amount funded by each address in wei.
+
+### i_owner
+
+```solidity
+address public immutable i_owner
+```
+
+Immutable variable storing the contract owner's address. Set to the deployer's address in the constructor.
+
+## Custom Errors
+
+### NotOwner
+
+```solidity
+error NotOwner()
+```
+
+Thrown when a non-owner tries to execute an owner-only function.
+
+## Constructor
+
+```solidity
+constructor()
+```
+
+Initializes the contract by setting the deployer as the immutable owner (`i_owner`).
+
+## Functions
+
+### fund
+
+```solidity
+function fund() public payable
+```
+
+Allows users to send ETH to the contract. The ETH value must meet the minimum USD requirement.
+
+**Requirements**:
+- The ETH amount sent must be equivalent to at least `MINIMUM_USD` when converted to USD
+
+**Effects**:
+- Adds the sender's address to the `funders` array
+- Updates the sender's funded amount in `addressToAmountFunded` mapping
+
+**Reverts**:
+- If the sent ETH value is less than the minimum USD requirement: "didn't send enough ETH"
+
+### withdraw
+
+```solidity
+function withdraw() public onlyOwner
+```
+
+Withdraws all contract funds to the owner's address. Only callable by the contract owner.
+
+**Modifiers**:
+- `onlyOwner`: Restricts access to the contract owner
+
+**Effects**:
+- Resets all funder balances in `addressToAmountFunded` to 0
+- Clears the `funders` array
+- Transfers the entire contract balance to the owner using the `call` method
+
+**Reverts**:
+- If caller is not the owner (via `NotOwner` error)
+- If the transfer call fails: "Call failed"
+
+## Modifiers
+
+### onlyOwner
+
+```solidity
+modifier onlyOwner()
+```
+
+Restricts function access to only the contract owner.
+
+**Reverts**:
+- If `msg.sender` is not equal to `i_owner`, reverts with `NotOwner()` error
+
+## Special Functions
+
+### receive
+
+```solidity
+receive() external payable
+```
+
+Fallback function that automatically calls `fund()` when ETH is sent to the contract without calldata.
+
+### fallback
+
+```solidity
+fallback() external payable
+```
+
+Fallback function that automatically calls `fund()` when the contract receives a call with calldata that doesn't match any function signature.
+
+## Complete Source Code
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
+
+import {PriceConverter} from "./PriceConverter.sol";
+
+error NotOwner();
+
+contract FundMe {
+    using PriceConverter for uint256;
+
+    uint256 public constant MINIMUM_USD = 5e18; // OR * 1e18 OR * (10 ** 18);
+
+    address[] public funders;
+    mapping(address funder => uint256 amountFunded) public addressToAmountFunded;
+
+    address public immutable i_owner;
+
+    constructor() {
+        i_owner = msg.sender;
+    }
+
+    function fund() public payable {
+        require(msg.value.getConversionRate() >= MINIMUM_USD, "didn't send enough ETH");
+        funders.push(msg.sender);
+        addressToAmountFunded[msg.sender] += msg.value;
+    }
+
+    function withdraw() public onlyOwner {
+        for (uint256 funderIndex = 0; funderIndex < funders.length; funderIndex++) {
+            address funder = funders[funderIndex];
+            addressToAmountFunded[funder] = 0;
+        }
+        funders = new address[](0);
+
+        // payable(msg.sender).transfer(address(this).balance);
+
+        // bool sendSuccess = payable(msg.sender).send(address(this).balance);
+        // require(sendSuccess, "Send failed");
+
+        (bool callSuccess,) = payable(msg.sender).call{value: address(this).balance}("");
+        require(callSuccess, "Call failed");
+    }
+
+    modifier onlyOwner() {
+        // require(msg.sender == i_owner, "Sender is not owner!");
+        if (msg.sender != i_owner) revert NotOwner();
+        _;
+    }
+
+    receive() external payable {
+        fund();
+    }
+
+    fallback() external payable {
+        fund();
+    }
+}
+```
+
+## Usage Example
+
+```solidity
+// Deploy the contract
+FundMe fundMe = new FundMe();
+
+// Fund the contract with 0.1 ETH
+fundMe.fund{value: 0.1 ether}();
+
+// Check how much an address has funded
+uint256 amount = fundMe.addressToAmountFunded(msg.sender);
+
+// Withdraw funds (only owner)
+fundMe.withdraw();
+```
+
+## Security Considerations
+
+- The contract uses the `call` method for ETH transfers, which is the recommended approach
+- Owner privileges are immutable and set at deployment
+- The contract relies on Chainlink price feeds for accurate ETH/USD conversion
+- No reentrancy protection is implemented (consider adding ReentrancyGuard for production)

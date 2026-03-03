@@ -1,0 +1,253 @@
+---
+title: Libraries
+description: Learn how to use Solidity libraries and the 'using...for' syntax to extend functionality and write cleaner code
+---
+
+## Overview
+
+Libraries are similar to contracts but are designed for code reuse. They are deployed once and their code is reused by multiple contracts using `DELEGATECALL`, making them gas-efficient.
+
+## Creating a Library
+
+Use the `library` keyword instead of `contract`:
+
+```solidity PriceConverter.sol
+library PriceConverter {
+    function getPrice() internal view returns (uint256) {
+        // Implementation
+    }
+    
+    function getConversionRate(uint256 ethAmount) internal view returns (uint256) {
+        uint256 ethPrice = getPrice();
+        uint256 ethAmountInUsd = (ethPrice * ethAmount) / 1e18;
+        return ethAmountInUsd;
+    }
+}
+```
+
+<Info>
+Library functions are typically marked as `internal` or `public`. Internal functions are only accessible by the calling contract.
+</Info>
+
+## Library Characteristics
+
+### What Libraries Cannot Do
+
+- Cannot have state variables
+- Cannot inherit or be inherited
+- Cannot receive Ether
+- Cannot be destroyed
+
+### What Libraries Can Do
+
+- Define functions (including `view` and `pure` functions)
+- Define structs, enums, and events
+- Use other libraries
+- Modify state of the calling contract (via `DELEGATECALL`)
+
+## Using Libraries
+
+There are two ways to use library functions:
+
+### 1. Direct Library Calls
+
+```solidity
+import {PriceConverter} from "./PriceConverter.sol";
+
+contract FundMe {
+    function fund() public payable {
+        uint256 valueInUsd = PriceConverter.getConversionRate(msg.value);
+    }
+}
+```
+
+### 2. Using...For Syntax
+
+The `using...for` directive attaches library functions to a type:
+
+```solidity FundMe.sol
+import {PriceConverter} from "./PriceConverter.sol";
+
+contract FundMe {
+    using PriceConverter for uint256;
+    
+    function fund() public payable {
+        // msg.value is uint256, so we can call library functions on it
+        uint256 valueInUsd = msg.value.getConversionRate();
+    }
+}
+```
+
+<Tip>
+The `using...for` syntax makes code more readable by allowing you to call library functions as if they were methods on the type.
+</Tip>
+
+## How Using...For Works
+
+When you use `using PriceConverter for uint256`:
+
+<Tabs>
+  <Tab title="Before">
+    ```solidity
+    uint256 valueInUsd = PriceConverter.getConversionRate(msg.value);
+    ```
+    
+    Traditional library call passing `msg.value` as argument.
+  </Tab>
+  <Tab title="After">
+    ```solidity
+    using PriceConverter for uint256;
+    
+    uint256 valueInUsd = msg.value.getConversionRate();
+    ```
+    
+    Clean method-like syntax. `msg.value` becomes the first parameter.
+  </Tab>
+</Tabs>
+
+## Real-World Example: PriceConverter
+
+Here's a complete library that interacts with Chainlink price feeds:
+
+```solidity PriceConverter.sol
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
+
+import {AggregatorV3Interface} from "@chainlink/contracts@1.5.0/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+
+library PriceConverter {
+    function getPrice() internal view returns (uint256) {
+        // Sepolia ETH/USD price feed address
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(
+            0x694AA1769357215DE4FAC081bf1f309aDC325306
+        );
+        (, int256 price,,,) = priceFeed.latestRoundData();
+        // Price has 8 decimals, convert to 18 decimals
+        return uint256(price * 1e10);
+    }
+
+    function getConversionRate(uint256 ethAmount) internal view returns (uint256) {
+        uint256 ethPrice = getPrice();
+        uint256 ethAmountInUsd = (ethPrice * ethAmount) / 1e18;
+        return ethAmountInUsd;
+    }
+
+    function getVersion() internal view returns (uint256) {
+        return AggregatorV3Interface(
+            0x694AA1769357215DE4FAC081bf1f309aDC325306
+        ).version();
+    }
+}
+```
+
+## Using the Library in a Contract
+
+```solidity FundMe.sol
+import {PriceConverter} from "./PriceConverter.sol";
+
+contract FundMe {
+    using PriceConverter for uint256;
+    
+    uint256 public constant MINIMUM_USD = 5e18;
+    
+    function fund() public payable {
+        // Clean syntax: call getConversionRate on msg.value
+        require(
+            msg.value.getConversionRate() >= MINIMUM_USD,
+            "didn't send enough ETH"
+        );
+    }
+}
+```
+
+<Note>
+Without `using...for`, you would need to write:
+```solidity
+require(PriceConverter.getConversionRate(msg.value) >= MINIMUM_USD);
+```
+The `using...for` syntax makes it more readable.
+</Note>
+
+## Library Function Parameters
+
+When using `using...for`, the type becomes the **first parameter** of library functions:
+
+```solidity
+library Math {
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a + b;
+    }
+}
+
+contract Calculator {
+    using Math for uint256;
+    
+    function calculate() public pure returns (uint256) {
+        uint256 x = 5;
+        // x becomes the first parameter (a), 3 is the second parameter (b)
+        return x.add(3); // Returns 8
+    }
+}
+```
+
+## Global Using...For (Solidity 0.8.19+)
+
+You can attach libraries globally in newer versions:
+
+```solidity
+using PriceConverter for uint256 global;
+
+contract FundMe {
+    // No need to declare 'using' again
+    function fund() public payable {
+        require(msg.value.getConversionRate() >= MINIMUM_USD);
+    }
+}
+```
+
+## Common Standard Libraries
+
+### OpenZeppelin Libraries
+
+```solidity
+import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
+
+contract Example {
+    using SafeMath for uint256;
+    
+    function safeAdd(uint256 a, uint256 b) public pure returns (uint256) {
+        return a.add(b); // Reverts on overflow
+    }
+}
+```
+
+<Warning>
+`SafeMath` is no longer needed in Solidity 0.8.0+ because overflow/underflow checking is built-in.
+</Warning>
+
+## Benefits of Libraries
+
+1. **Code Reusability** - Write once, use in multiple contracts
+2. **Gas Efficiency** - Deployed once, reused via `DELEGATECALL`
+3. **Clean Code** - `using...for` makes code more readable
+4. **Separation of Concerns** - Keep utility functions separate from contract logic
+5. **Upgradability** - Can deploy new library versions without changing contract code
+
+## Library vs Contract
+
+| Feature | Library | Contract |
+|---------|---------|----------|
+| State Variables | No | Yes |
+| Receive Ether | No | Yes |
+| Inheritance | No | Yes |
+| Deployed | Once, reused | Each instance |
+| Use Case | Utility functions | Business logic |
+
+## Key Takeaways
+
+- Libraries provide reusable utility functions without state
+- Use `library` keyword instead of `contract`
+- `using...for` attaches library functions to types for cleaner syntax
+- Library functions become available as methods on the specified type
+- Libraries are gas-efficient because they're deployed once and reused
+- Common use cases: math operations, type conversions, data validation

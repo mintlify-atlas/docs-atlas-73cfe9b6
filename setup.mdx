@@ -1,0 +1,293 @@
+---
+title: Setup
+description: Get started with Remix IDE and deploy your first Solidity smart contract from the course
+---
+
+# Setup Guide
+
+This guide will help you set up your development environment and deploy your first smart contract using Remix IDE.
+
+## Prerequisites
+
+You'll need:
+
+- A modern web browser (Chrome, Firefox, or Brave recommended)
+- MetaMask wallet extension (for testnet deployment)
+- Sepolia testnet ETH (free from faucets)
+
+<Note>
+No local installation required! Remix IDE runs entirely in your browser.
+</Note>
+
+## Setting Up Remix IDE
+
+<Steps>
+  <Step title="Open Remix IDE">
+    Navigate to [https://remix.ethereum.org/](https://remix.ethereum.org/) in your web browser.
+    
+    Remix will load with a default workspace and example contracts.
+  </Step>
+  
+  <Step title="Create a New Workspace">
+    In the File Explorer panel on the left:
+    
+    1. Click the workspace dropdown (default is "default_workspace")
+    2. Click **Create** to create a new workspace
+    3. Name it something like "Solidity-Course"
+    4. Select **Blank** template
+    5. Click **OK**
+  </Step>
+  
+  <Step title="Create Contract Files">
+    Right-click in the File Explorer and select **New File** to create your first contract.
+    
+    Name it `SimpleStorage.sol`
+  </Step>
+</Steps>
+
+## Your First Contract: SimpleStorage
+
+Let's deploy the SimpleStorage contract to understand the basics.
+
+### 1. Copy the Contract Code
+
+Create a new file `SimpleStorage.sol` and paste the following code:
+
+```solidity SimpleStorage.sol
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
+
+contract SimpleStorage {
+    uint256 myFavoriteNumber = 3;
+
+    struct Person {
+        uint256 favoriteNumber;
+        string name;
+    }
+
+    Person[] public listOfPeople;
+    mapping(string => uint256) public nameToNumber;
+
+    function store(uint256 _favoriteNumber) public {
+        myFavoriteNumber = _favoriteNumber;
+    }
+
+    function retrieve() public view returns (uint256) {
+        return myFavoriteNumber;
+    }
+
+    function addPerson(string memory _name, uint256 _favoriteNumber) public {
+        listOfPeople.push(Person(_favoriteNumber, _name));
+        nameToNumber[_name] = _favoriteNumber;
+    }
+}
+```
+
+### 2. Compile the Contract
+
+<Steps>
+  <Step title="Open Solidity Compiler">
+    Click the **Solidity Compiler** icon in the left sidebar (looks like an "S" with a box).
+  </Step>
+  
+  <Step title="Select Compiler Version">
+    In the compiler dropdown, select **0.8.30** to match the pragma version.
+    
+    <Warning>
+    Always match the compiler version to your contract's pragma statement to avoid compatibility issues.
+    </Warning>
+  </Step>
+  
+  <Step title="Compile">
+    Click the blue **Compile SimpleStorage.sol** button.
+    
+    You should see a green checkmark if compilation succeeds.
+  </Step>
+</Steps>
+
+### 3. Deploy the Contract
+
+<Steps>
+  <Step title="Open Deploy & Run">
+    Click the **Deploy & Run Transactions** icon (looks like an Ethereum logo with an arrow).
+  </Step>
+  
+  <Step title="Select Environment">
+    In the **Environment** dropdown, select:
+    
+    - **Remix VM (Shanghai)** - For quick local testing (recommended for beginners)
+    - **Injected Provider - MetaMask** - For deploying to Sepolia testnet
+    
+    <Tip>
+    Start with Remix VM to test without spending real testnet ETH.
+    </Tip>
+  </Step>
+  
+  <Step title="Deploy">
+    1. Ensure **SimpleStorage** is selected in the contract dropdown
+    2. Click the orange **Deploy** button
+    3. Your deployed contract appears under **Deployed Contracts**
+  </Step>
+</Steps>
+
+### 4. Interact with the Contract
+
+Expand your deployed contract to see all available functions:
+
+<Accordion title="store - Write a favorite number">
+  1. Enter a number in the field next to `store` (e.g., `42`)
+  2. Click the **store** button (orange, indicates it's a transaction)
+  3. Wait for the transaction to confirm
+</Accordion>
+
+<Accordion title="retrieve - Read the stored number">
+  1. Click the blue **retrieve** button (blue indicates it's a view function - no gas cost)
+  2. The current favorite number displays below the button
+</Accordion>
+
+<Accordion title="addPerson - Add a person with their favorite number">
+  1. Enter a name and number: `"Alice", 7`
+  2. Click **addPerson**
+  3. Click **listOfPeople** and enter index `0` to see Alice's data
+  4. Click **nameToNumber** and enter `"Alice"` to see her favorite number
+</Accordion>
+
+## Deploying to Sepolia Testnet
+
+Ready to deploy to a real testnet?
+
+<Steps>
+  <Step title="Install MetaMask">
+    Install the [MetaMask browser extension](https://metamask.io/) and create a wallet if you haven't already.
+  </Step>
+  
+  <Step title="Get Sepolia ETH">
+    Use a Sepolia faucet to get free testnet ETH:
+    
+    - [Alchemy Sepolia Faucet](https://sepoliafaucet.com/)
+    - [Infura Sepolia Faucet](https://www.infura.io/faucet/sepolia)
+    
+    You'll need a small amount (~0.1 ETH) for deployment and transactions.
+  </Step>
+  
+  <Step title="Connect MetaMask to Remix">
+    1. In Remix, select **Injected Provider - MetaMask** from the Environment dropdown
+    2. MetaMask will pop up asking to connect
+    3. Approve the connection
+    4. Ensure Sepolia network is selected in MetaMask
+  </Step>
+  
+  <Step title="Deploy and Verify">
+    1. Click **Deploy**
+    2. MetaMask will ask you to confirm the transaction
+    3. Approve and wait for deployment
+    4. Copy the contract address from Deployed Contracts
+    5. View your contract on [Sepolia Etherscan](https://sepolia.etherscan.io/)
+  </Step>
+</Steps>
+
+<Warning>
+Never use real ETH on mainnet for testing! Always use testnets like Sepolia.
+</Warning>
+
+## Working with Other Contracts
+
+### Storage Factory
+
+For contracts with multiple files like StorageFactory, you'll need to import dependencies:
+
+1. Create a folder structure: `factory-storage/`
+2. Add both `StorageFactory.sol` and `SimpleStorage.sol` to the folder
+3. Remix automatically resolves local imports
+
+### Fund Me (with Chainlink)
+
+The FundMe contract uses Chainlink Price Feeds:
+
+```solidity FundMe.sol
+import {PriceConverter} from "./PriceConverter.sol";
+
+contract FundMe {
+    using PriceConverter for uint256;
+    
+    uint256 public constant MINIMUM_USD = 5e18;
+    // ...
+}
+```
+
+<Steps>
+  <Step title="Create Both Files">
+    You'll need both `FundMe.sol` and `PriceConverter.sol` in the same folder.
+  </Step>
+  
+  <Step title="Deploy to Sepolia">
+    <Warning>
+    FundMe MUST be deployed to Sepolia testnet because it uses Chainlink Price Feeds that only exist on live networks.
+    </Warning>
+    
+    The contract uses the Sepolia ETH/USD price feed at:
+    ```
+    0x694AA1769357215DE4FAC081bf1f309aDC325306
+    ```
+  </Step>
+  
+  <Step title="Fund the Contract">
+    Use the **fund** function and send at least the minimum USD value in ETH (calculated automatically using Chainlink).
+  </Step>
+</Steps>
+
+## Tips for Success
+
+<CardGroup cols={2}>
+  <Card title="Save Your Work" icon="floppy-disk">
+    Remix auto-saves, but export your workspace periodically: **File → Export Workspace**
+  </Card>
+  
+  <Card title="Use Console" icon="terminal">
+    Open browser DevTools (F12) to see detailed transaction logs and errors
+  </Card>
+  
+  <Card title="Gas Estimation" icon="gas-pump">
+    Remix shows gas estimates before deployment - useful for optimization
+  </Card>
+  
+  <Card title="Debugger" icon="bug">
+    Use Remix's debugger to step through failed transactions and understand what went wrong
+  </Card>
+</CardGroup>
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Compilation Error: Wrong Solidity Version">
+    Make sure the compiler version matches the pragma:
+    
+    ```solidity
+    pragma solidity 0.8.30; // Use compiler 0.8.30
+    ```
+  </Accordion>
+  
+  <Accordion title="Transaction Failed: Out of Gas">
+    Increase the gas limit in the Deploy & Run panel, or optimize your contract code.
+  </Accordion>
+  
+  <Accordion title="Import Not Found">
+    For local imports, ensure both files are in the same folder in Remix's file explorer.
+  </Accordion>
+  
+  <Accordion title="MetaMask Not Connecting">
+    1. Refresh the Remix page
+    2. Disconnect and reconnect MetaMask
+    3. Make sure you're on the correct network (Sepolia)
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<Card title="Start with Simple Storage" icon="rocket" href="/contracts/simple-storage">
+  Now that you're set up, dive into the SimpleStorage contract to learn Solidity fundamentals
+</Card>
+
+<Tip>
+As you progress through the contracts, refer to the [Concepts](/concepts/data-types) section for deeper explanations of Solidity features.
+</Tip>

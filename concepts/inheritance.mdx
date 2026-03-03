@@ -1,0 +1,233 @@
+---
+title: Inheritance
+description: Learn how to use inheritance and function overriding in Solidity to create reusable contract code
+---
+
+## Overview
+
+Inheritance allows contracts to inherit properties and functions from parent contracts, enabling code reuse and creating hierarchical contract relationships.
+
+## Basic Inheritance
+
+Use the `is` keyword to inherit from a parent contract:
+
+```solidity AddFiveStorage.sol
+import {SimpleStorage} from "./SimpleStorage.sol";
+
+contract AddFiveStorage is SimpleStorage {
+    // Inherits all functions and state variables from SimpleStorage
+}
+```
+
+<Info>
+The child contract (`AddFiveStorage`) automatically has access to all public and internal functions and state variables from the parent contract (`SimpleStorage`).
+</Info>
+
+## Function Overriding
+
+Child contracts can override parent functions to change their behavior.
+
+### Requirements for Overriding
+
+1. Parent function must be marked as `virtual`
+2. Child function must use the `override` keyword
+
+### Parent Contract
+
+First, mark the function as virtual in the parent:
+
+```solidity SimpleStorage.sol
+contract SimpleStorage {
+    uint256 myFavoriteNumber = 3;
+
+    function store(uint256 _favoriteNumber) public virtual {
+        myFavoriteNumber = _favoriteNumber;
+    }
+}
+```
+
+### Child Contract
+
+Then override it in the child:
+
+```solidity AddFiveStorage.sol
+contract AddFiveStorage is SimpleStorage {
+    function store(uint256 _favoriteNumber) public override {
+        myFavoriteNumber = _favoriteNumber + 5;
+    }
+}
+```
+
+<Note>
+The `override` keyword explicitly declares that this function is meant to override a parent function. This prevents accidental naming conflicts.
+</Note>
+
+## How It Works
+
+<Tabs>
+  <Tab title="SimpleStorage">
+    ```solidity
+    contract SimpleStorage {
+        uint256 myFavoriteNumber = 3;
+
+        function store(uint256 _favoriteNumber) public virtual {
+            myFavoriteNumber = _favoriteNumber;
+        }
+
+        function retrieve() public view returns (uint256) {
+            return myFavoriteNumber;
+        }
+    }
+    ```
+    
+    Calling `store(10)` sets `myFavoriteNumber` to **10**.
+  </Tab>
+  <Tab title="AddFiveStorage">
+    ```solidity
+    contract AddFiveStorage is SimpleStorage {
+        function store(uint256 _favoriteNumber) public override {
+            myFavoriteNumber = _favoriteNumber + 5;
+        }
+    }
+    ```
+    
+    Calling `store(10)` sets `myFavoriteNumber` to **15** (10 + 5).
+  </Tab>
+</Tabs>
+
+## Accessing Parent Functions
+
+You can call the parent's version of an overridden function using `super`:
+
+```solidity
+contract AddFiveStorage is SimpleStorage {
+    function store(uint256 _favoriteNumber) public override {
+        // Call parent's store function first
+        super.store(_favoriteNumber);
+        // Then add 5
+        myFavoriteNumber += 5;
+    }
+}
+```
+
+## Multiple Inheritance
+
+Solidity supports multiple inheritance. Contracts can inherit from multiple parents:
+
+```solidity
+contract A {
+    function foo() public virtual returns (string memory) {
+        return "A";
+    }
+}
+
+contract B {
+    function bar() public virtual returns (string memory) {
+        return "B";
+    }
+}
+
+contract C is A, B {
+    // Inherits both foo() and bar()
+}
+```
+
+<Warning>
+When using multiple inheritance, be aware of the **C3 linearization** order. Always list parent contracts from "most base-like" to "most derived".
+</Warning>
+
+## Constructor Inheritance
+
+If the parent contract has a constructor with parameters, the child must pass them:
+
+```solidity
+contract Parent {
+    address public owner;
+    
+    constructor(address _owner) {
+        owner = _owner;
+    }
+}
+
+contract Child is Parent {
+    constructor(address _owner) Parent(_owner) {
+        // Child-specific initialization
+    }
+}
+```
+
+## Visibility and Inheritance
+
+| Visibility | Inherited by Child | Accessible from Outside |
+|------------|-------------------|-------------------------|
+| `public` | Yes | Yes |
+| `internal` | Yes | No |
+| `private` | No | No |
+| `external` | No* | Yes |
+
+<Note>
+*External functions can be called via `this.functionName()` but are not directly inherited.
+</Note>
+
+## When to Use Inheritance
+
+### Good Use Cases
+
+- Creating specialized versions of a contract
+- Implementing standard interfaces (ERC20, ERC721)
+- Sharing common functionality across multiple contracts
+- Building modular, upgradeable systems
+
+### Example: Factory Pattern
+
+```solidity StorageFactory.sol
+contract StorageFactory {
+    function createAddFiveStorage() public {
+        AddFiveStorage newContract = new AddFiveStorage();
+        // newContract behaves like SimpleStorage but adds 5
+    }
+}
+```
+
+## Complete Example
+
+Here's the full working example:
+
+```solidity SimpleStorage.sol
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
+
+contract SimpleStorage {
+    uint256 myFavoriteNumber = 3;
+
+    function store(uint256 _favoriteNumber) public virtual {
+        myFavoriteNumber = _favoriteNumber;
+    }
+
+    function retrieve() public view returns (uint256) {
+        return myFavoriteNumber;
+    }
+}
+```
+
+```solidity AddFiveStorage.sol
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
+
+import {SimpleStorage} from "./SimpleStorage.sol";
+
+contract AddFiveStorage is SimpleStorage {
+    function store(uint256 _favoriteNumber) public override {
+        myFavoriteNumber = _favoriteNumber + 5;
+    }
+}
+```
+
+## Key Takeaways
+
+- Use `is` keyword to inherit from parent contracts
+- Parent functions need `virtual` to be overrideable
+- Child functions need `override` to override parent functions
+- Child contracts inherit all public/internal state variables and functions
+- Use `super` to call parent implementations
+- Inheritance enables code reuse and polymorphism in Solidity

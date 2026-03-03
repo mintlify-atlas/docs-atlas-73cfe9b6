@@ -1,0 +1,210 @@
+---
+title: SimpleStorage Contract
+description: Learn about the SimpleStorage contract - an introductory smart contract covering Solidity fundamentals including data types, structs, arrays, and mappings.
+---
+
+## Overview
+
+The `SimpleStorage` contract is a foundational smart contract that demonstrates core Solidity concepts. It manages a favorite number and maintains a list of people with their associated favorite numbers.
+
+**Key Features:**
+- Store and retrieve a favorite number
+- Manage a dynamic list of people with their favorite numbers
+- Quick name-to-number lookup using mappings
+- Demonstrates structs, arrays, and mappings in action
+
+## Contract Structure
+
+### State Variables
+
+```solidity
+uint256 myFavoriteNumber = 3;
+Person[] public listOfPeople;
+mapping(string => uint256) public nameToNumber;
+```
+
+- `myFavoriteNumber` - Stores a single unsigned integer (initialized to 3)
+- `listOfPeople` - Dynamic array of Person structs
+- `nameToNumber` - Maps person names to their favorite numbers for efficient lookup
+
+### Data Types
+
+#### Person Struct
+
+```solidity
+struct Person {
+    uint256 favoriteNumber;
+    string name;
+}
+```
+
+The `Person` struct defines a custom data type that bundles together a person's name and their favorite number.
+
+## Core Functions
+
+### store()
+
+```solidity
+function store(uint256 _favoriteNumber) public {
+    myFavoriteNumber = _favoriteNumber;
+}
+```
+
+Stores a new favorite number, overwriting the previous value.
+
+**Parameters:**
+- `_favoriteNumber` - The new favorite number to store
+
+**Visibility:** `public` - Can be called by anyone
+
+<Note>
+This is a state-changing function that costs gas to execute since it modifies blockchain storage.
+</Note>
+
+### retrieve()
+
+```solidity
+function retrieve() public view returns (uint256) {
+    return myFavoriteNumber;
+}
+```
+
+Retrieves the currently stored favorite number.
+
+**Returns:** The current value of `myFavoriteNumber`
+
+**Visibility:** `public view` - Read-only function that doesn't cost gas when called externally
+
+### addPerson()
+
+```solidity
+function addPerson(string memory _name, uint256 _favoriteNumber) public {
+    listOfPeople.push(Person(_favoriteNumber, _name));
+    nameToNumber[_name] = _favoriteNumber;
+}
+```
+
+Adds a new person to the list and creates a mapping entry for quick lookup.
+
+**Parameters:**
+- `_name` - The person's name (stored in memory during function execution)
+- `_favoriteNumber` - The person's favorite number
+
+**What it does:**
+1. Creates a new `Person` struct
+2. Adds it to the `listOfPeople` array
+3. Creates a mapping entry for name-based lookup
+
+<Note>
+The `memory` keyword indicates that `_name` is temporarily stored in memory during function execution, not permanently in contract storage.
+</Note>
+
+## Full Contract Code
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
+
+contract SimpleStorage {
+    uint256 myFavoriteNumber = 3;
+
+    struct Person {
+        uint256 favoriteNumber;
+        string name;
+    }
+
+    Person[] public listOfPeople;
+    mapping(string => uint256) public nameToNumber;
+
+    function store(uint256 _favoriteNumber) public {
+        myFavoriteNumber = _favoriteNumber;
+    }
+
+    function retrieve() public view returns (uint256) {
+        return myFavoriteNumber;
+    }
+
+    function addPerson(string memory _name, uint256 _favoriteNumber) public {
+        listOfPeople.push(Person(_favoriteNumber, _name));
+        nameToNumber[_name] = _favoriteNumber;
+    }
+}
+```
+
+## Usage Examples
+
+<Tabs>
+  <Tab title="Store a Number">
+    ```solidity
+    // Store the number 42
+    simpleStorage.store(42);
+    ```
+  </Tab>
+  
+  <Tab title="Retrieve a Number">
+    ```solidity
+    // Get the stored number
+    uint256 favoriteNumber = simpleStorage.retrieve();
+    // Returns: 42
+    ```
+  </Tab>
+  
+  <Tab title="Add People">
+    ```solidity
+    // Add people to the list
+    simpleStorage.addPerson("Alice", 7);
+    simpleStorage.addPerson("Bob", 13);
+    simpleStorage.addPerson("Charlie", 99);
+    
+    // Look up by name
+    uint256 aliceNumber = simpleStorage.nameToNumber("Alice");
+    // Returns: 7
+    
+    // Look up by index
+    (uint256 number, string memory name) = simpleStorage.listOfPeople(0);
+    // Returns: (7, "Alice")
+    ```
+  </Tab>
+</Tabs>
+
+## Concepts Demonstrated
+
+<CardGroup cols={2}>
+  <Card title="Data Types" icon="database">
+    - `uint256` for numbers
+    - `string` for text
+    - Custom `struct` types
+  </Card>
+  
+  <Card title="Storage Structures" icon="layer-group">
+    - Dynamic arrays (`Person[]`)
+    - Mappings for key-value pairs
+    - State variables
+  </Card>
+  
+  <Card title="Functions" icon="code">
+    - State-changing functions
+    - `view` functions for reading
+    - Public visibility
+  </Card>
+  
+  <Card title="Memory Keywords" icon="memory">
+    - `memory` for temporary data
+    - Understanding storage locations
+  </Card>
+</CardGroup>
+
+## Key Takeaways
+
+<Check>
+**SimpleStorage teaches fundamental Solidity concepts:**
+- How to declare and use state variables
+- Working with structs, arrays, and mappings
+- The difference between view and state-changing functions
+- Memory vs storage data locations
+- Public visibility and automatic getters
+</Check>
+
+<Warning>
+In production contracts, consider adding access controls to prevent unauthorized modifications to stored data.
+</Warning>

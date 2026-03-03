@@ -1,0 +1,134 @@
+---
+title: Introduction
+description: Learn Solidity smart contract development with hands-on examples from Cyfrin Updraft's comprehensive course
+---
+
+# Solidity Smart Contract Development
+
+Welcome to the Solidity Course documentation! This collection of smart contracts covers fundamental to intermediate Solidity concepts, all developed and tested in [Remix IDE](https://remix.ethereum.org/) as part of the [Cyfrin Updraft](https://updraft.cyfrin.io/) course.
+
+<Note>
+All contracts use **Solidity 0.8.30** and are designed to run on the **Sepolia testnet** with Chainlink Price Feeds integration.
+</Note>
+
+## What You'll Learn
+
+This course takes you from Solidity basics to building production-ready smart contracts with real-world integrations:
+
+<CardGroup cols={2}>
+  <Card title="Simple Storage" icon="database" href="/contracts/simple-storage">
+    Master Solidity fundamentals with data types, structs, arrays, and mappings
+  </Card>
+  
+  <Card title="Factory Pattern" icon="industry" href="/contracts/storage-factory">
+    Deploy and manage multiple contract instances with the factory pattern
+  </Card>
+  
+  <Card title="Inheritance" icon="diagram-project" href="/concepts/inheritance">
+    Extend contract functionality using inheritance and function overriding
+  </Card>
+  
+  <Card title="Chainlink Oracles" icon="link" href="/concepts/oracles">
+    Integrate real-world data with Chainlink Price Feeds for ETH/USD conversion
+  </Card>
+  
+  <Card title="Crowdfunding" icon="hand-holding-dollar" href="/contracts/fund-me">
+    Build a complete crowdfunding contract with access control and withdrawals
+  </Card>
+  
+  <Card title="Gas Optimization" icon="gauge-high" href="/concepts/gas-optimization">
+    Optimize smart contracts using constant, immutable, and custom errors
+  </Card>
+</CardGroup>
+
+## Key Features
+
+### Progressive Learning Path
+
+Start with basic storage and progress to advanced patterns:
+
+1. **SimpleStorage** - Learn core Solidity syntax and state management
+2. **StorageFactory** - Understand contract composition and deployment
+3. **FundMe** - Build real applications with oracle integration
+
+### Real-World Integrations
+
+All contracts use production-grade tools and libraries:
+
+- **Chainlink Price Feeds** for reliable ETH/USD conversion on Sepolia testnet
+- **Custom errors** for gas-efficient error handling
+- **Libraries** for code reusability with `PriceConverter`
+- **Modifiers** for access control patterns
+
+### Production Best Practices
+
+Learn optimization techniques used in production:
+
+```solidity
+// Gas optimization with constant and immutable
+contract FundMe {
+    uint256 public constant MINIMUM_USD = 5e18;
+    address public immutable i_owner;
+    
+    constructor() {
+        i_owner = msg.sender;
+    }
+}
+```
+
+```solidity
+// Custom errors vs require strings
+error NotOwner();
+
+modifier onlyOwner() {
+    if (msg.sender != i_owner) revert NotOwner();
+    _;
+}
+```
+
+## Course Concepts
+
+The contracts demonstrate these essential Solidity concepts:
+
+- **Data Structures**: Structs, dynamic arrays, and mappings
+- **Functions**: View/pure functions, visibility modifiers, and custom modifiers
+- **Contract Patterns**: Factory pattern, inheritance, and composition
+- **Libraries**: Using `using ... for` syntax with the PriceConverter library
+- **Oracles**: Chainlink Price Feeds for off-chain data
+- **Error Handling**: Custom errors vs require statements
+- **Gas Optimization**: Constant and immutable variables
+- **ETH Transfers**: Transfer, send, and call patterns
+- **Special Functions**: Receive and fallback functions
+
+## Getting Started
+
+<Card title="Setup Guide" icon="rocket" href="/setup">
+  Get your development environment ready with Remix IDE and deploy your first contract
+</Card>
+
+<CardGroup cols={3}>
+  <Card title="Simple Storage" icon="play" href="/contracts/simple-storage">
+    Start here
+  </Card>
+  
+  <Card title="Storage Factory" icon="forward" href="/contracts/storage-factory">
+    Next level
+  </Card>
+  
+  <Card title="Fund Me" icon="forward-fast" href="/contracts/fund-me">
+    Advanced
+  </Card>
+</CardGroup>
+
+## Why These Contracts Matter
+
+These aren't just tutorial examples - they're building blocks for real decentralized applications:
+
+- **SimpleStorage** patterns power NFT metadata and on-chain registries
+- **Factory patterns** enable protocols like Uniswap to create trading pairs
+- **FundMe** demonstrates crowdfunding platforms like Kickstarter on-chain
+- **Chainlink integration** is used by DeFi protocols managing billions in TVL
+
+<Tip>
+Each contract is self-contained and can be deployed independently in Remix IDE. Start with SimpleStorage and progress at your own pace.
+</Tip>

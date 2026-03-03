@@ -1,0 +1,285 @@
+---
+title: Oracles & Chainlink Price Feeds
+description: Learn how oracles bring real-world data to smart contracts using Chainlink Price Feeds
+---
+
+## The Oracle Problem
+
+Smart contracts run on blockchain networks that are **deterministic and isolated**. They cannot directly access external data like:
+
+- Stock prices
+- Weather data
+- Sports scores
+- **Cryptocurrency prices**
+
+This is called the **Oracle Problem**.
+
+<Warning>
+Never rely on a single centralized API for critical contract logic. This creates a single point of failure and defeats the purpose of decentralization.
+</Warning>
+
+## What Are Oracles?
+
+Oracles are services that bring external data onto the blockchain. They act as a bridge between smart contracts and the real world.
+
+### Decentralized Oracle Networks
+
+**Chainlink** is the most widely used decentralized oracle network. It:
+
+- Aggregates data from multiple sources
+- Uses multiple independent node operators
+- Provides cryptographically signed data
+- Eliminates single points of failure
+
+<Info>
+Chainlink Price Feeds are used by protocols like Aave, Synthetix, and Compound to get reliable asset prices.
+</Info>
+
+## Chainlink Price Feeds
+
+Price Feeds provide real-time cryptocurrency and asset prices to smart contracts.
+
+### How They Work
+
+1. Multiple Chainlink nodes fetch prices from various exchanges
+2. Nodes submit prices to an aggregator contract
+3. The median price is calculated and stored on-chain
+4. Your contract reads the latest price from the aggregator
+
+### Available Price Feeds
+
+Chainlink provides hundreds of price feeds across multiple networks:
+
+- ETH/USD, BTC/USD, LINK/USD
+- Stablecoins: DAI/USD, USDC/USD
+- Commodities: Gold, Silver
+- Traditional assets: Stocks, Forex
+
+Find all feeds at [data.chain.link](https://data.chain.link)
+
+## Using Chainlink Price Feeds
+
+### 1. Install the Chainlink Interface
+
+Import the `AggregatorV3Interface`:
+
+```solidity PriceConverter.sol
+import {AggregatorV3Interface} from "@chainlink/contracts@1.5.0/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+```
+
+### 2. Connect to a Price Feed
+
+Use the price feed contract address for your network:
+
+```solidity PriceConverter.sol
+library PriceConverter {
+    function getPrice() internal view returns (uint256) {
+        // Sepolia ETH/USD Price Feed
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(
+            0x694AA1769357215DE4FAC081bf1f309aDC325306
+        );
+        
+        (, int256 price,,,) = priceFeed.latestRoundData();
+        
+        // Price has 8 decimals, convert to 18 for consistency with wei
+        return uint256(price * 1e10);
+    }
+}
+```
+
+<Note>
+The address `0x694AA1769357215DE4FAC081bf1f309aDC325306` is the ETH/USD price feed on Sepolia testnet.
+</Note>
+
+### 3. Understanding latestRoundData()
+
+The `latestRoundData()` function returns:
+
+```solidity
+(
+    uint80 roundId,           // Unique round identifier
+    int256 answer,            // The price (8 decimals)
+    uint256 startedAt,        // Timestamp when round started
+    uint256 updatedAt,        // Timestamp when round was updated
+    uint80 answeredInRound    // Round in which answer was computed
+)
+```
+
+Most commonly, you only need the `answer` (price):
+
+```solidity
+(, int256 price,,,) = priceFeed.latestRoundData();
+```
+
+## Converting ETH to USD
+
+Here's a complete example converting ETH amounts to USD:
+
+```solidity PriceConverter.sol
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
+
+import {AggregatorV3Interface} from "@chainlink/contracts@1.5.0/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+
+library PriceConverter {
+    function getPrice() internal view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(
+            0x694AA1769357215DE4FAC081bf1f309aDC325306
+        );
+        (, int256 price,,,) = priceFeed.latestRoundData();
+        // Convert 8 decimals to 18 decimals
+        return uint256(price * 1e10);
+    }
+
+    function getConversionRate(uint256 ethAmount) internal view returns (uint256) {
+        uint256 ethPrice = getPrice();
+        // Both ethPrice and ethAmount have 18 decimals
+        uint256 ethAmountInUsd = (ethPrice * ethAmount) / 1e18;
+        return ethAmountInUsd;
+    }
+
+    function getVersion() internal view returns (uint256) {
+        return AggregatorV3Interface(
+            0x694AA1769357215DE4FAC081bf1f309aDC325306
+        ).version();
+    }
+}
+```
+
+### Understanding the Math
+
+<Tabs>
+  <Tab title="Price Decimals">
+    ```solidity
+    // Chainlink returns price with 8 decimals
+    // Example: ETH = $2000
+    int256 price = 200000000000; // $2000 with 8 decimals
+    
+    // Convert to 18 decimals (wei standard)
+    uint256 priceInWei = uint256(price * 1e10);
+    // 2000000000000000000000 (18 decimals)
+    ```
+  </Tab>
+  <Tab title="Conversion">
+    ```solidity
+    // User sends 1 ETH (1e18 wei)
+    uint256 ethAmount = 1e18;
+    
+    // ETH price = $2000 (with 18 decimals)
+    uint256 ethPrice = 2000e18;
+    
+    // Calculate USD value
+    uint256 usdValue = (ethPrice * ethAmount) / 1e18;
+    // (2000e18 * 1e18) / 1e18 = 2000e18 ($2000)
+    ```
+  </Tab>
+</Tabs>
+
+## Using Price Feeds in Your Contract
+
+Here's how the FundMe contract uses the PriceConverter library:
+
+```solidity FundMe.sol
+import {PriceConverter} from "./PriceConverter.sol";
+
+contract FundMe {
+    using PriceConverter for uint256;
+    
+    uint256 public constant MINIMUM_USD = 5e18; // $5 with 18 decimals
+    
+    function fund() public payable {
+        // Check if msg.value (in ETH) is at least $5 USD
+        require(
+            msg.value.getConversionRate() >= MINIMUM_USD,
+            "didn't send enough ETH"
+        );
+    }
+}
+```
+
+<Tip>
+By using `using PriceConverter for uint256`, you can call `msg.value.getConversionRate()` directly instead of `PriceConverter.getConversionRate(msg.value)`.
+</Tip>
+
+## Price Feed Addresses by Network
+
+### Ethereum Mainnet
+
+```solidity
+// ETH/USD: 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419
+```
+
+### Sepolia Testnet
+
+```solidity
+// ETH/USD: 0x694AA1769357215DE4FAC081bf1f309aDC325306
+```
+
+### Arbitrum
+
+```solidity
+// ETH/USD: 0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612
+```
+
+<Info>
+Always verify addresses at [data.chain.link](https://data.chain.link) for your specific network.
+</Info>
+
+## Best Practices
+
+### 1. Check for Stale Data
+
+```solidity
+function getPrice() internal view returns (uint256) {
+    AggregatorV3Interface priceFeed = AggregatorV3Interface(priceFeedAddress);
+    (, int256 price,, uint256 updatedAt,) = priceFeed.latestRoundData();
+    
+    // Ensure price is recent (updated within last hour)
+    require(block.timestamp - updatedAt < 3600, "Stale price data");
+    
+    return uint256(price * 1e10);
+}
+```
+
+### 2. Handle Negative Prices
+
+```solidity
+require(price > 0, "Invalid price");
+```
+
+### 3. Use Try/Catch for External Calls
+
+```solidity
+function getPrice() internal view returns (uint256) {
+    try priceFeed.latestRoundData() returns (
+        uint80,
+        int256 price,
+        uint256,
+        uint256,
+        uint80
+    ) {
+        return uint256(price * 1e10);
+    } catch {
+        revert("Failed to fetch price");
+    }
+}
+```
+
+## Other Chainlink Services
+
+Beyond Price Feeds, Chainlink offers:
+
+- **VRF (Verifiable Random Function)** - Provably random numbers
+- **Automation** - Time-based or condition-based smart contract execution
+- **Any API** - Connect to any external API
+- **Proof of Reserve** - Verify off-chain asset backing
+
+## Key Takeaways
+
+- Oracles solve the problem of getting external data on-chain
+- Chainlink provides decentralized, tamper-proof price feeds
+- Use `AggregatorV3Interface` to connect to price feeds
+- `latestRoundData()` returns the current price with 8 decimals
+- Convert prices to 18 decimals for consistency with wei
+- Always validate price data (check for staleness and negative values)
+- Chainlink is used by major DeFi protocols for reliable price data

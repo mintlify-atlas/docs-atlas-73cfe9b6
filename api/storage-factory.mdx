@@ -1,0 +1,152 @@
+---
+title: "StorageFactory Contract"
+description: "Complete API reference for the StorageFactory smart contract that manages multiple SimpleStorage contract instances"
+---
+
+## Overview
+
+The `StorageFactory` contract allows you to create and manage multiple instances of the `SimpleStorage` contract. It maintains a list of deployed SimpleStorage contracts and provides functions to interact with them.
+
+## Contract Details
+
+- **License**: MIT
+- **Solidity Version**: 0.8.30
+- **Imports**: `SimpleStorage` from `./SimpleStorage.sol`
+
+## State Variables
+
+### listOfSimpleStorageContracts
+
+```solidity
+SimpleStorage[] public listOfSimpleStorageContracts
+```
+
+An array that stores all deployed SimpleStorage contract instances. This is a public state variable, so Solidity automatically generates a getter function for it.
+
+<ParamField path="index" type="uint256">
+  The index of the SimpleStorage contract in the array
+</ParamField>
+
+**Returns**: The SimpleStorage contract instance at the specified index
+
+---
+
+## Functions
+
+### createSimpleStorageContract
+
+```solidity
+function createSimpleStorageContract() public
+```
+
+Creates a new SimpleStorage contract instance and adds it to the `listOfSimpleStorageContracts` array.
+
+**Visibility**: `public`
+
+**State Mutability**: Modifies state (deploys a new contract)
+
+**Description**: This function deploys a new SimpleStorage contract using the `new` keyword and appends it to the internal list. Each call creates a fresh instance of SimpleStorage.
+
+---
+
+### sfStore
+
+```solidity
+function sfStore(uint256 _simpleStorageIndex, uint256 _newSimpleStorageNumber) public
+```
+
+Stores a value in a specific SimpleStorage contract instance.
+
+**Visibility**: `public`
+
+**State Mutability**: Modifies state (updates storage in the target contract)
+
+**Parameters**:
+
+<ParamField path="_simpleStorageIndex" type="uint256" required>
+  The index of the SimpleStorage contract in the `listOfSimpleStorageContracts` array
+</ParamField>
+
+<ParamField path="_newSimpleStorageNumber" type="uint256" required>
+  The number to store in the specified SimpleStorage contract
+</ParamField>
+
+**Description**: This function calls the `store()` function on the SimpleStorage contract at the specified index, updating its stored value.
+
+---
+
+### sfGet
+
+```solidity
+function sfGet(uint256 _simpleStorageIndex) public view returns (uint256)
+```
+
+Retrieves the stored value from a specific SimpleStorage contract instance.
+
+**Visibility**: `public`
+
+**State Mutability**: `view` (read-only)
+
+**Parameters**:
+
+<ParamField path="_simpleStorageIndex" type="uint256" required>
+  The index of the SimpleStorage contract in the `listOfSimpleStorageContracts` array
+</ParamField>
+
+**Returns**: `uint256` - The favorite number stored in the specified SimpleStorage contract
+
+**Description**: This function calls the `retrieve()` function on the SimpleStorage contract at the specified index and returns the stored value.
+
+---
+
+## Complete Contract Code
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
+
+import {SimpleStorage} from "./SimpleStorage.sol";
+
+contract StorageFactory {
+    // type visibility name
+    SimpleStorage[] public listOfSimpleStorageContracts;
+
+    function createSimpleStorageContract() public {
+        SimpleStorage newSimpleStorageContract = new SimpleStorage();
+        listOfSimpleStorageContracts.push(newSimpleStorageContract);
+    }
+
+    function sfStore(uint256 _simpleStorageIndex, uint256 _newSimpleStorageNumber) public {
+        listOfSimpleStorageContracts[_simpleStorageIndex].store(_newSimpleStorageNumber);
+    }
+
+    function sfGet(uint256 _simpleStorageIndex) public view returns (uint256) {
+        return listOfSimpleStorageContracts[_simpleStorageIndex].retrieve();
+    }
+}
+```
+
+## Usage Examples
+
+### Creating and Using Storage Contracts
+
+```solidity
+// Deploy the StorageFactory
+StorageFactory factory = new StorageFactory();
+
+// Create first SimpleStorage instance (index 0)
+factory.createSimpleStorageContract();
+
+// Create second SimpleStorage instance (index 1)
+factory.createSimpleStorageContract();
+
+// Store value in first contract
+factory.sfStore(0, 42);
+
+// Store value in second contract
+factory.sfStore(1, 100);
+
+// Retrieve values
+uint256 firstValue = factory.sfGet(0);  // Returns 42
+uint256 secondValue = factory.sfGet(1); // Returns 100
+```

@@ -1,0 +1,211 @@
+---
+title: 'SimpleStorage Contract'
+description: 'Complete API reference for the SimpleStorage smart contract'
+---
+
+## Overview
+
+The SimpleStorage contract demonstrates basic Solidity concepts including state variables, structs, arrays, mappings, and functions. This contract allows users to store and retrieve a favorite number, as well as maintain a list of people with their associated favorite numbers.
+
+## Contract Details
+
+- **Solidity Version**: 0.8.30
+- **License**: MIT
+
+## State Variables
+
+<ParamField path="myFavoriteNumber" type="uint256" default="3">
+  Stores the favorite number. Initialized to 3 by default.
+</ParamField>
+
+<ParamField path="listOfPeople" type="Person[]">
+  A dynamic array that stores all Person structs added to the contract.
+</ParamField>
+
+<ParamField path="nameToNumber" type="mapping(string => uint256)">
+  Maps a person's name to their favorite number for quick lookup.
+</ParamField>
+
+## Structs
+
+### Person
+
+A struct representing a person with their favorite number.
+
+<ParamField path="favoriteNumber" type="uint256">
+  The person's favorite number.
+</ParamField>
+
+<ParamField path="name" type="string">
+  The person's name.
+</ParamField>
+
+## Functions
+
+### store
+
+```solidity
+function store(uint256 _favoriteNumber) public
+```
+
+Stores a new favorite number, overwriting the previous value.
+
+<ParamField path="_favoriteNumber" type="uint256" required>
+  The new favorite number to store.
+</ParamField>
+
+**Access**: Public
+
+**State Changes**: Modifies `myFavoriteNumber`
+
+---
+
+### retrieve
+
+```solidity
+function retrieve() public view returns (uint256)
+```
+
+Retrieves the currently stored favorite number.
+
+**Returns**: The current value of `myFavoriteNumber`
+
+**Access**: Public
+
+**Modifiers**: `view` (read-only, does not modify state)
+
+---
+
+### addPerson
+
+```solidity
+function addPerson(string memory _name, uint256 _favoriteNumber) public
+```
+
+Adds a new person to the list with their favorite number and creates a mapping entry.
+
+<ParamField path="_name" type="string" required>
+  The name of the person to add.
+</ParamField>
+
+<ParamField path="_favoriteNumber" type="uint256" required>
+  The person's favorite number.
+</ParamField>
+
+**Access**: Public
+
+**State Changes**: 
+- Adds a new Person struct to `listOfPeople`
+- Creates/updates an entry in `nameToNumber` mapping
+
+---
+
+### listOfPeople (getter)
+
+```solidity
+function listOfPeople(uint256 index) public view returns (Person)
+```
+
+Automatically generated getter function for the `listOfPeople` array.
+
+<ParamField path="index" type="uint256" required>
+  The index of the person in the array.
+</ParamField>
+
+**Returns**: Person struct at the specified index
+
+**Access**: Public
+
+**Modifiers**: `view` (read-only)
+
+---
+
+### nameToNumber (getter)
+
+```solidity
+function nameToNumber(string memory name) public view returns (uint256)
+```
+
+Automatically generated getter function for the `nameToNumber` mapping.
+
+<ParamField path="name" type="string" required>
+  The name to look up.
+</ParamField>
+
+**Returns**: The favorite number associated with the given name
+
+**Access**: Public
+
+**Modifiers**: `view` (read-only)
+
+## Complete Source Code
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
+
+contract SimpleStorage {
+    uint256 myFavoriteNumber = 3;
+
+    //uint256[] listOfFavoriteNumbers;
+    struct Person {
+        uint256 favoriteNumber;
+        string name;
+    }
+
+    // Person public pat = Person(7, "Pat");
+    Person[] public listOfPeople;
+
+    mapping(string => uint256) public nameToNumber;
+
+    function store(uint256 _favoriteNumber) public {
+        myFavoriteNumber = _favoriteNumber;
+    }
+
+    function retrieve() public view returns (uint256) {
+        return myFavoriteNumber;
+    }
+
+    function addPerson(string memory _name, uint256 _favoriteNumber) public {
+        listOfPeople.push(Person(_favoriteNumber, _name));
+        nameToNumber[_name] = _favoriteNumber;
+    }
+}
+```
+
+## Usage Examples
+
+### Storing a Favorite Number
+
+```solidity
+// Store the number 42 as the favorite number
+simpleStorage.store(42);
+```
+
+### Retrieving the Favorite Number
+
+```solidity
+// Get the current favorite number
+uint256 currentFavorite = simpleStorage.retrieve();
+```
+
+### Adding a Person
+
+```solidity
+// Add a person named "Alice" with favorite number 7
+simpleStorage.addPerson("Alice", 7);
+```
+
+### Looking Up by Name
+
+```solidity
+// Get Alice's favorite number
+uint256 aliceFavorite = simpleStorage.nameToNumber("Alice");
+```
+
+### Accessing the People List
+
+```solidity
+// Get the first person in the list
+Person memory firstPerson = simpleStorage.listOfPeople(0);
+```

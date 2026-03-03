@@ -1,0 +1,143 @@
+---
+title: "AddFiveStorage Contract"
+description: "Complete API reference for the AddFiveStorage contract that extends SimpleStorage with automatic value increment"
+---
+
+## Overview
+
+The `AddFiveStorage` contract is a child contract that inherits from `SimpleStorage`. It demonstrates contract inheritance and function overriding in Solidity by modifying the behavior of the `store()` function to automatically add 5 to any stored value.
+
+## Contract Details
+
+- **License**: MIT
+- **Solidity Version**: 0.8.30
+- **Inherits**: `SimpleStorage`
+- **Imports**: `SimpleStorage` from `./SimpleStorage.sol`
+
+## State Variables
+
+This contract inherits all state variables from `SimpleStorage`, including:
+
+- `myFavoriteNumber` - A `uint256` variable that stores the favorite number
+- `listOfPeople` - An array of `Person` structs
+- `nameToFavoriteNumber` - A mapping from names to favorite numbers
+
+---
+
+## Functions
+
+### store
+
+```solidity
+function store(uint256 _favoriteNumber) public override
+```
+
+Stores a value in the contract, automatically adding 5 to the input value.
+
+**Visibility**: `public`
+
+**State Mutability**: Modifies state
+
+**Modifier**: `override` - This function overrides the parent `SimpleStorage.store()` function
+
+**Parameters**:
+
+<ParamField path="_favoriteNumber" type="uint256" required>
+  The base number to store. The actual stored value will be this number plus 5.
+</ParamField>
+
+**Description**: This function overrides the parent contract's `store()` function. Instead of storing the value directly, it adds 5 to the input before storing it in `myFavoriteNumber`.
+
+**Behavior**: 
+- Input: `_favoriteNumber`
+- Stored: `_favoriteNumber + 5`
+
+**Example**:
+```solidity
+AddFiveStorage storage = new AddFiveStorage();
+storage.store(10);
+uint256 value = storage.retrieve(); // Returns 15 (10 + 5)
+```
+
+---
+
+## Inherited Functions
+
+Since `AddFiveStorage` inherits from `SimpleStorage`, it also has access to these functions (unless overridden):
+
+- `retrieve()` - Returns the stored favorite number
+- `addPerson(string memory _name, uint256 _favoriteNumber)` - Adds a person to the list
+
+---
+
+## Complete Contract Code
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
+
+import {SimpleStorage} from "./SimpleStorage.sol";
+
+contract AddFiveStorage is SimpleStorage {
+    function store(uint256 _favoriteNumber) public override {
+        myFavoriteNumber = _favoriteNumber + 5;
+    }
+}
+```
+
+## Key Concepts Demonstrated
+
+### Inheritance
+
+This contract uses the `is` keyword to inherit from `SimpleStorage`:
+
+```solidity
+contract AddFiveStorage is SimpleStorage
+```
+
+This means `AddFiveStorage` automatically receives all state variables and functions from its parent contract.
+
+### Function Overriding
+
+The `store()` function uses the `override` keyword to replace the parent contract's implementation:
+
+```solidity
+function store(uint256 _favoriteNumber) public override
+```
+
+The parent contract's `store()` function must be marked as `virtual` to allow overriding.
+
+### Direct State Variable Access
+
+The overridden function directly accesses the inherited `myFavoriteNumber` state variable:
+
+```solidity
+myFavoriteNumber = _favoriteNumber + 5;
+```
+
+---
+
+## Usage Examples
+
+### Basic Usage
+
+```solidity
+// Deploy the AddFiveStorage contract
+AddFiveStorage addFive = new AddFiveStorage();
+
+// Store a value (automatically adds 5)
+addFive.store(20);
+
+// Retrieve the value
+uint256 storedValue = addFive.retrieve(); // Returns 25
+```
+
+### Using with StorageFactory
+
+While `AddFiveStorage` can be used independently, it can also be deployed as part of a factory pattern similar to `StorageFactory`, demonstrating polymorphism in Solidity.
+
+```solidity
+// If StorageFactory were modified to accept different storage types
+AddFiveStorage customStorage = new AddFiveStorage();
+customStorage.store(100); // Stores 105
+```

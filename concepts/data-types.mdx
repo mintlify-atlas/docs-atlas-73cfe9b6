@@ -1,0 +1,216 @@
+---
+title: Data Types & Storage
+description: Learn about Solidity's data types, structs, arrays, and mappings with practical examples
+---
+
+## Overview
+
+Solidity is a statically-typed language, meaning you must declare the type of each variable. Understanding data types and storage structures is fundamental to writing efficient smart contracts.
+
+## Basic Data Types
+
+### Unsigned Integers
+
+The most common numeric type in Solidity is `uint256` (unsigned integer with 256 bits):
+
+```solidity SimpleStorage.sol
+contract SimpleStorage {
+    uint256 myFavoriteNumber = 3;
+    
+    function store(uint256 _favoriteNumber) public {
+        myFavoriteNumber = _favoriteNumber;
+    }
+    
+    function retrieve() public view returns (uint256) {
+        return myFavoriteNumber;
+    }
+}
+```
+
+<Info>
+`uint256` can hold values from 0 to 2^256 - 1. The `uint` keyword is shorthand for `uint256`.
+</Info>
+
+### Other Common Types
+
+- `address` - Ethereum addresses (20 bytes)
+- `bool` - Boolean values (true/false)
+- `string` - Text data
+- `bytes` - Raw byte data
+- `int256` - Signed integers (can be negative)
+
+## Structs
+
+Structs allow you to create custom data types by grouping related variables:
+
+```solidity SimpleStorage.sol
+struct Person {
+    uint256 favoriteNumber;
+    string name;
+}
+```
+
+You can instantiate structs in multiple ways:
+
+<Tabs>
+  <Tab title="Explicit Constructor">
+    ```solidity
+    Person public pat = Person(7, "Pat");
+    ```
+  </Tab>
+  <Tab title="Named Parameters">
+    ```solidity
+    Person public pat = Person({
+        favoriteNumber: 7,
+        name: "Pat"
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## Arrays
+
+Arrays store ordered lists of elements. They can be fixed-size or dynamic.
+
+### Dynamic Arrays
+
+```solidity SimpleStorage.sol
+Person[] public listOfPeople;
+
+function addPerson(string memory _name, uint256 _favoriteNumber) public {
+    listOfPeople.push(Person(_favoriteNumber, _name));
+}
+```
+
+<Note>
+Dynamic arrays can grow in size using the `push()` method. The size is not predetermined.
+</Note>
+
+### Fixed-Size Arrays
+
+```solidity
+uint256[10] fixedArray; // Always contains exactly 10 elements
+```
+
+## Mappings
+
+Mappings are key-value stores, similar to hash tables or dictionaries in other languages:
+
+```solidity SimpleStorage.sol
+mapping(string => uint256) public nameToNumber;
+
+function addPerson(string memory _name, uint256 _favoriteNumber) public {
+    listOfPeople.push(Person(_favoriteNumber, _name));
+    nameToNumber[_name] = _favoriteNumber;
+}
+```
+
+### How Mappings Work
+
+- **Keys** can be any built-in type (except mappings, structs, or arrays)
+- **Values** can be any type, including other mappings
+- All possible keys exist and map to the default value (0 for numbers)
+- You cannot iterate over mappings
+
+### Advanced Mapping Syntax
+
+Solidity 0.8.18+ supports clearer mapping declarations:
+
+```solidity FundMe.sol
+mapping(address funder => uint256 amountFunded) public addressToAmountFunded;
+```
+
+This is equivalent to:
+
+```solidity
+mapping(address => uint256) public addressToAmountFunded;
+```
+
+<Tip>
+The named syntax makes it clearer what the mapping represents, improving code readability.
+</Tip>
+
+## Storage Locations
+
+When working with reference types (arrays, structs, mappings, strings), you must specify a data location:
+
+### Memory
+
+Temporary data that exists only during function execution:
+
+```solidity
+function addPerson(string memory _name, uint256 _favoriteNumber) public {
+    // _name is stored in memory and discarded after function completes
+}
+```
+
+### Storage
+
+Permanent data stored on the blockchain:
+
+```solidity
+Person[] public listOfPeople; // Automatically in storage
+mapping(string => uint256) public nameToNumber; // Always in storage
+```
+
+### Calldata
+
+Read-only temporary data (more gas-efficient than memory for external function parameters):
+
+```solidity
+function processData(string calldata _data) external {
+    // _data cannot be modified
+}
+```
+
+<Note>
+**State variables** (declared at contract level) are always in storage. **Function parameters** need explicit data location for reference types.
+</Note>
+
+## Practical Example
+
+Here's the complete SimpleStorage contract demonstrating all concepts:
+
+```solidity SimpleStorage.sol
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
+
+contract SimpleStorage {
+    // State variable (storage)
+    uint256 myFavoriteNumber = 3;
+
+    // Struct definition
+    struct Person {
+        uint256 favoriteNumber;
+        string name;
+    }
+
+    // Dynamic array (storage)
+    Person[] public listOfPeople;
+
+    // Mapping (storage)
+    mapping(string => uint256) public nameToNumber;
+
+    function store(uint256 _favoriteNumber) public {
+        myFavoriteNumber = _favoriteNumber;
+    }
+
+    function retrieve() public view returns (uint256) {
+        return myFavoriteNumber;
+    }
+
+    function addPerson(string memory _name, uint256 _favoriteNumber) public {
+        listOfPeople.push(Person(_favoriteNumber, _name));
+        nameToNumber[_name] = _favoriteNumber;
+    }
+}
+```
+
+## Key Takeaways
+
+- Use `uint256` for non-negative numbers, `int256` for signed numbers
+- Structs group related data into custom types
+- Arrays store ordered collections; use dynamic arrays with `push()`
+- Mappings provide O(1) lookups but cannot be iterated
+- Specify `memory` for temporary function parameters, `calldata` for read-only parameters
+- State variables are automatically stored in blockchain storage

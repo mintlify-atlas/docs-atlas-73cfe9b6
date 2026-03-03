@@ -1,0 +1,440 @@
+---
+title: FundMe Contract
+description: Learn about the FundMe crowdfunding contract that accepts ETH donations with USD-based minimum requirements using Chainlink price feeds.
+---
+
+## Overview
+
+The `FundMe` contract is a production-grade crowdfunding smart contract that accepts ETH donations with a minimum USD value requirement. It uses **Chainlink Oracle** to get real-time ETH/USD price data from the Sepolia testnet.
+
+**Key Features:**
+- Accept ETH donations with minimum $5 USD value
+- Track all funders and amounts contributed
+- Owner-only withdrawal functionality
+- Real-time USD conversion using Chainlink Price Feeds
+- Gas-optimized with `constant` and `immutable` variables
+- Custom errors for efficient error handling
+- Automatic funding via `receive()` and `fallback()` functions
+
+<Note>
+This contract is deployed on the **Sepolia testnet** and uses the Chainlink ETH/USD price feed at `0x694AA1769357215DE4FAC081bf1f309aDC325306`.
+</Note>
+
+## Contract Architecture
+
+The FundMe system consists of two components:
+
+1. **FundMe.sol** - Main contract with funding and withdrawal logic
+2. **PriceConverter.sol** - Library for ETH to USD conversion using Chainlink
+
+## FundMe Contract
+
+### State Variables
+
+```solidity
+using PriceConverter for uint256;
+
+uint256 public constant MINIMUM_USD = 5e18;
+address[] public funders;
+mapping(address funder => uint256 amountFunded) public addressToAmountFunded;
+address public immutable i_owner;
+```
+
+- `MINIMUM_USD` - Minimum donation of $5 (in wei, 18 decimals)
+- `funders` - Array of all unique funder addresses
+- `addressToAmountFunded` - Tracks total amount funded by each address
+- `i_owner` - Contract deployer address (immutable for gas savings)
+
+<Note>
+**Gas Optimization:**
+- `constant` variables are replaced at compile-time (cheapest)
+- `immutable` variables are set once at deployment (cheaper than storage)
+- Naming convention: `i_` prefix for immutable, `ALL_CAPS` for constants
+</Note>
+
+### Custom Error
+
+```solidity
+error NotOwner();
+```
+
+Custom errors are more gas-efficient than `require` statements with string messages.
+
+### Constructor
+
+```solidity
+constructor() {
+    i_owner = msg.sender;
+}
+```
+
+Sets the contract deployer as the owner during deployment.
+
+## Core Functions
+
+### fund()
+
+```solidity
+function fund() public payable {
+    require(msg.value.getConversionRate() >= MINIMUM_USD, "didn't send enough ETH");
+    funders.push(msg.sender);
+    addressToAmountFunded[msg.sender] += msg.value;
+}
+```
+
+Accepts ETH donations and tracks funders.
+
+**What it does:**
+1. Converts sent ETH to USD using Chainlink price feed
+2. Requires at least $5 USD equivalent
+3. Adds sender to funders array
+4. Updates the amount funded by the sender
+
+**Visibility:** `public payable` - Can receive ETH
+
+<Warning>
+The function doesn't check for duplicate entries in the `funders` array. If the same address funds multiple times, they'll appear multiple times in the array.
+</Warning>
+
+### withdraw()
+
+```solidity
+function withdraw() public onlyOwner {
+    for (uint256 funderIndex = 0; funderIndex < funders.length; funderIndex++) {
+        address funder = funders[funderIndex];
+        addressToAmountFunded[funder] = 0;
+    }
+    funders = new address[](0);
+    
+    (bool callSuccess,) = payable(msg.sender).call{value: address(this).balance}("");
+    require(callSuccess, "Call failed");
+}
+```
+
+Allows the owner to withdraw all funds.
+
+**What it does:**
+1. Resets all funder balances to 0
+2. Clears the funders array
+3. Transfers entire contract balance to owner using `.call()`
+
+**Modifier:** `onlyOwner` - Only contract owner can withdraw
+
+<Note>
+**ETH Transfer Methods:**
+The contract shows three methods (commented code included):
+- `transfer()` - 2300 gas limit, reverts on failure
+- `send()` - 2300 gas limit, returns bool
+- `call()` - No gas limit, returns bool (recommended)
+
+The contract uses `.call()` as it's the most flexible and secure method.
+</Note>
+
+### Modifier: onlyOwner
+
+```solidity
+modifier onlyOwner() {
+    if (msg.sender != i_owner) revert NotOwner();
+    _;
+}
+```
+
+Restricts function access to the contract owner. Uses custom error for gas efficiency.
+
+### receive() and fallback()
+
+```solidity
+receive() external payable {
+    fund();
+}
+
+fallback() external payable {
+    fund();
+}
+```
+
+Automatically call `fund()` when ETH is sent directly to the contract.
+
+- `receive()` - Called when ETH is sent with empty calldata
+- `fallback()` - Called when function signature doesn't match or with data
+
+## PriceConverter Library
+
+A library that provides USD conversion functionality using Chainlink.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
+
+import {AggregatorV3Interface} from "@chainlink/contracts@1.5.0/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+
+library PriceConverter {
+    function getPrice() internal view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(0x694AA1769357215DE4FAC081bf1f309aDC325306);
+        (, int256 price,,,) = priceFeed.latestRoundData();
+        return uint256(price * 1e10);
+    }
+
+    function getConversionRate(uint256 ethAmount) internal view returns (uint256) {
+        uint256 ethPrice = getPrice();
+        uint256 ethAmountInUsd = (ethPrice * ethAmount) / 1e18;
+        return ethAmountInUsd;
+    }
+
+    function getVersion() internal view returns (uint256) {
+        return AggregatorV3Interface(0x694AA1769357215DE4FAC081bf1f309aDC325306).version();
+    }
+}
+```
+
+### Key Functions
+
+<AccordionGroup>
+  <Accordion title="getPrice()">
+    Fetches the current ETH/USD price from Chainlink.
+    
+    **Returns:** ETH price in USD with 18 decimals (e.g., 2000e18 = $2000)
+    
+    The Chainlink feed returns 8 decimals, so we multiply by 1e10 to get 18 decimals for consistency.
+  </Accordion>
+  
+  <Accordion title="getConversionRate(uint256 ethAmount)">
+    Converts an ETH amount to its USD value.
+    
+    **Parameters:**
+    - `ethAmount` - Amount of ETH in wei
+    
+    **Returns:** USD value with 18 decimals
+    
+    **Formula:** `(ethPrice * ethAmount) / 1e18`
+  </Accordion>
+  
+  <Accordion title="getVersion()">
+    Returns the version of the Chainlink price feed contract.
+    
+    Useful for debugging and verifying the correct feed is being used.
+  </Accordion>
+</AccordionGroup>
+
+### Using Libraries
+
+```solidity
+using PriceConverter for uint256;
+```
+
+This directive allows you to call library functions on `uint256` variables:
+
+```solidity
+// Instead of: PriceConverter.getConversionRate(msg.value)
+// You can write: msg.value.getConversionRate()
+```
+
+## Full Contract Code
+
+<CodeGroup>
+
+```solidity FundMe.sol
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
+
+import {PriceConverter} from "./PriceConverter.sol";
+
+error NotOwner();
+
+contract FundMe {
+    using PriceConverter for uint256;
+
+    uint256 public constant MINIMUM_USD = 5e18;
+
+    address[] public funders;
+    mapping(address funder => uint256 amountFunded) public addressToAmountFunded;
+
+    address public immutable i_owner;
+
+    constructor() {
+        i_owner = msg.sender;
+    }
+
+    function fund() public payable {
+        require(msg.value.getConversionRate() >= MINIMUM_USD, "didn't send enough ETH");
+        funders.push(msg.sender);
+        addressToAmountFunded[msg.sender] += msg.value;
+    }
+
+    function withdraw() public onlyOwner {
+        for (uint256 funderIndex = 0; funderIndex < funders.length; funderIndex++) {
+            address funder = funders[funderIndex];
+            addressToAmountFunded[funder] = 0;
+        }
+        funders = new address[](0);
+
+        (bool callSuccess,) = payable(msg.sender).call{value: address(this).balance}("");
+        require(callSuccess, "Call failed");
+    }
+
+    modifier onlyOwner() {
+        if (msg.sender != i_owner) revert NotOwner();
+        _;
+    }
+
+    receive() external payable {
+        fund();
+    }
+
+    fallback() external payable {
+        fund();
+    }
+}
+```
+
+```solidity PriceConverter.sol
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
+
+import {AggregatorV3Interface} from "@chainlink/contracts@1.5.0/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+
+library PriceConverter {
+    function getPrice() internal view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(0x694AA1769357215DE4FAC081bf1f309aDC325306);
+        (, int256 price,,,) = priceFeed.latestRoundData();
+        return uint256(price * 1e10);
+    }
+
+    function getConversionRate(uint256 ethAmount) internal view returns (uint256) {
+        uint256 ethPrice = getPrice();
+        uint256 ethAmountInUsd = (ethPrice * ethAmount) / 1e18;
+        return ethAmountInUsd;
+    }
+
+    function getVersion() internal view returns (uint256) {
+        return AggregatorV3Interface(0x694AA1769357215DE4FAC081bf1f309aDC325306).version();
+    }
+}
+```
+
+</CodeGroup>
+
+## Usage Examples
+
+<Tabs>
+  <Tab title="Fund the Contract">
+    ```solidity
+    // Fund with 0.01 ETH (must be worth at least $5)
+    fundMe.fund{value: 0.01 ether}();
+    
+    // Or send ETH directly (receive/fallback will handle it)
+    address(fundMe).call{value: 0.01 ether}("");
+    ```
+  </Tab>
+  
+  <Tab title="Check Funding">
+    ```solidity
+    // Check how much an address has funded
+    uint256 myContribution = fundMe.addressToAmountFunded(msg.sender);
+    
+    // Get total funders
+    uint256 totalFunders = fundMe.funders.length;
+    
+    // Get a specific funder
+    address firstFunder = fundMe.funders(0);
+    ```
+  </Tab>
+  
+  <Tab title="Withdraw (Owner Only)">
+    ```solidity
+    // Only the owner can call this
+    fundMe.withdraw();
+    
+    // Will revert with NotOwner() if called by non-owner
+    ```
+  </Tab>
+  
+  <Tab title="Price Conversion">
+    ```solidity
+    // Get current ETH price
+    uint256 ethPrice = PriceConverter.getPrice();
+    // Example: 2000e18 = $2000.00
+    
+    // Convert 1 ETH to USD
+    uint256 oneEthInUsd = PriceConverter.getConversionRate(1 ether);
+    // Example: 2000e18 = $2000.00
+    ```
+  </Tab>
+</Tabs>
+
+## Concepts Demonstrated
+
+<CardGroup cols={2}>
+  <Card title="Chainlink Oracles" icon="link">
+    Get real-world data (ETH/USD price) from decentralized oracle networks.
+  </Card>
+  
+  <Card title="Libraries" icon="book">
+    Reusable code with `using ... for` syntax to extend types.
+  </Card>
+  
+  <Card title="Gas Optimization" icon="gas-pump">
+    Use `constant` and `immutable` to reduce storage costs.
+  </Card>
+  
+  <Card title="Access Control" icon="lock">
+    Custom modifiers and errors for permission management.
+  </Card>
+  
+  <Card title="Payable Functions" icon="dollar-sign">
+    Accept and manage ETH transfers with `payable` keyword.
+  </Card>
+  
+  <Card title="Special Functions" icon="star">
+    `receive()` and `fallback()` for direct ETH transfers.
+  </Card>
+</CardGroup>
+
+## Key Takeaways
+
+<Check>
+**FundMe demonstrates production-ready patterns:**
+- Integration with Chainlink oracles for real-world data
+- Using libraries with `using ... for` syntax
+- Gas optimization with `constant` and `immutable`
+- Custom errors vs `require` with strings (50% gas savings)
+- Owner-only functions with modifiers
+- Safe ETH transfers using `.call()`
+- Automatic funding with `receive()` and `fallback()`
+- Proper access control patterns
+</Check>
+
+## Security Considerations
+
+<Warning>
+**Potential Issues:**
+1. **Duplicate funders** - Same address can appear multiple times in array
+2. **No withdrawal limits** - Owner can withdraw everything at once
+3. **Centralized control** - Single owner has full control
+4. **No timelock** - No delay before owner can withdraw
+
+**Production improvements:**
+- Add withdrawal limits or vesting schedules
+- Implement multi-sig ownership
+- Add emergency pause functionality
+- Track unique funders to prevent array bloat
+</Warning>
+
+<Note>
+This contract is designed for educational purposes on the Sepolia testnet. For mainnet deployment, consider additional security measures like audits, testing, and upgradability patterns.
+</Note>
+
+## Chainlink Integration
+
+The contract uses Chainlink's decentralized oracle network:
+
+**Sepolia ETH/USD Price Feed:**
+- Address: `0x694AA1769357215DE4FAC081bf1f309aDC325306`
+- Network: Ethereum Sepolia Testnet
+- Decimals: 8 (converted to 18 in the library)
+
+<Info>
+Chainlink Price Feeds provide tamper-proof, high-quality price data aggregated from multiple sources. They're the industry standard for DeFi applications.
+
+Learn more at [docs.chain.link](https://docs.chain.link/data-feeds)
+</Info>
