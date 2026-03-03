@@ -1,0 +1,79 @@
+{
+  "projectType": "general",
+  "projectName": "Solidity Course",
+  "projectDescription": "Educational smart contract examples covering Solidity fundamentals, factory patterns, inheritance, and Chainlink oracles.",
+  "theme": "aspen",
+  "primaryColor": "#627EEA",
+  "lightColor": "#A6B7F4",
+  "darkColor": "#4B5EBB",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": ["introduction", "setup"]
+          },
+          {
+            "group": "Contracts",
+            "pages": [
+              "contracts/simple-storage",
+              "contracts/storage-factory",
+              "contracts/fund-me"
+            ]
+          },
+          {
+            "group": "Concepts",
+            "pages": [
+              "concepts/data-types",
+              "concepts/inheritance",
+              "concepts/libraries",
+              "concepts/oracles",
+              "concepts/gas-optimization"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "SimpleStorage",
+            "pages": ["api/simple-storage"]
+          },
+          {
+            "group": "StorageFactory",
+            "pages": ["api/storage-factory", "api/add-five-storage"]
+          },
+          {
+            "group": "FundMe",
+            "pages": ["api/fund-me", "api/price-converter"]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Simple Storage contract with structs and mappings",
+    "Factory pattern for deploying multiple contracts",
+    "Inheritance with function overriding",
+    "Chainlink Price Feeds integration",
+    "Crowdfunding with ETH/USD conversion",
+    "Gas optimization techniques"
+  ],
+  "publicApiSurface": [
+    "SimpleStorage.store(uint256)",
+    "SimpleStorage.retrieve()",
+    "SimpleStorage.addPerson(string, uint256)",
+    "StorageFactory.createSimpleStorageContract()",
+    "StorageFactory.sfStore(uint256, uint256)",
+    "StorageFactory.sfGet(uint256)",
+    "AddFiveStorage.store(uint256)",
+    "FundMe.fund()",
+    "FundMe.withdraw()",
+    "PriceConverter.getPrice()",
+    "PriceConverter.getConversionRate(uint256)",
+    "PriceConverter.getVersion()"
+  ]
+}
